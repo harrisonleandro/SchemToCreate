@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Console only: the tool is a one-shot CLI, so a log file would be litter.
+  LoggingConfigurator adjusts the level at runtime, and swaps in a detailed pattern for
+  debug output. No ANSI colouring, because it renders as escape sequences in a plain
+  Windows console.
+-->
+<configuration>
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <target>System.out</target>
+        <encoder>
+            <pattern>%-5level %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+    </root>
+</configuration>

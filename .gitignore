@@ -1,0 +1,16 @@
+.gradle/
+build/
+out/
+bin/
+*.class
+*.log
+.idea/
+*.iml
+.vscode/
+.DS_Store
+/examples/*.nbt
+/examples/generated/
+
+# Third-party build used for testing, not ours to redistribute.
+# "Medieval Tavern" by _DrLettuce_, made with Axiom.
+/examples/medieval-tavern-e3490.schem

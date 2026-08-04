@@ -1,0 +1,18 @@
+# Normalise text to LF in the repository, whatever the checkout platform uses.
+* text=auto eol=lf
+
+# The Gradle wrapper script is executed by sh; CRLF makes it fail to start on
+# Linux and macOS with "bad interpreter". It must stay LF everywhere.
+gradlew text eol=lf
+*.sh text eol=lf
+
+# Windows batch files need CRLF.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Binary: never touch line endings, never try to diff.
+*.jar binary
+*.schem binary
+*.nbt binary
+*.schematic binary
+*.png binary
