@@ -1,0 +1,58 @@
+# Builds the executables and attaches them to a GitHub release whenever a version tag is
+# pushed:  git tag v1.0.2 && git push origin v1.0.2
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to (re)build, e.g. v1.0.1"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    env:
+      TAG: ${{ github.event.inputs.tag || github.ref_name }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+
+      - name: Build and test
+        run: ./gradlew.bat build --console=plain
+
+      # A self-contained Windows app: SchemToCreate.exe plus a trimmed Java runtime, so it
+      # runs on machines without Java. The module list comes from `jdeps --print-module-deps`.
+      - name: Package Windows app
+        shell: pwsh
+        run: |
+          $version = $env:TAG.TrimStart('v')
+          New-Item -ItemType Directory build\jp-input, build\dist -Force | Out-Null
+          Copy-Item build\libs\SchemToCreate.jar build\jp-input\
+          jpackage --type app-image --input build\jp-input --main-jar SchemToCreate.jar `
+            --main-class dev.schemtocreate.cli.Main --name SchemToCreate --app-version $version `
+            --add-modules java.base,java.desktop,java.logging,java.naming,java.xml,jdk.crypto.ec `
+            --jlink-options "--strip-debug --no-man-pages --no-header-files --compress=2" `
+            --dest build\dist
+          Compress-Archive -Path build\dist\SchemToCreate -DestinationPath build\dist\SchemToCreate-windows.zip
+          Copy-Item build\libs\SchemToCreate.jar build\dist\
+
+      - name: Publish release
+        shell: pwsh
+        run: |
+          gh release view $env:TAG *> $null
+          if ($LASTEXITCODE -ne 0) { gh release create $env:TAG --title $env:TAG --generate-notes }
+          gh release upload $env:TAG build\dist\SchemToCreate-windows.zip build\dist\SchemToCreate.jar --clobber

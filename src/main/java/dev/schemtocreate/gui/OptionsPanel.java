@@ -53,6 +53,7 @@ final class OptionsPanel extends JPanel {
     private final JCheckBox includeEntities = new JCheckBox("Incluir entidades", true);
     private final JCheckBox overwrite = new JCheckBox("Substituir arquivos existentes", true);
     private final JCheckBox keepStructureVoid = new JCheckBox("Manter structure_void", false);
+    private final JCheckBox skipAir = new JCheckBox("Ignorar blocos de ar", false);
     private final JTextField replacements = new JTextField();
 
     private Path customFolder;
@@ -172,7 +173,7 @@ final class OptionsPanel extends JPanel {
         row.setOpaque(false);
         row.setLayout(new BoxLayout(row, BoxLayout.X_AXIS));
         row.setAlignmentX(Component.LEFT_ALIGNMENT);
-        for (JCheckBox box : new JCheckBox[]{includeEntities, overwrite, keepStructureVoid}) {
+        for (JCheckBox box : new JCheckBox[]{includeEntities, overwrite, keepStructureVoid, skipAir}) {
             box.setOpaque(false);
             row.add(box);
             row.add(Box.createHorizontalStrut(14));
@@ -188,6 +189,9 @@ final class OptionsPanel extends JPanel {
         overwrite.setToolTipText("Sem isto, um arquivo .nbt já existente é preservado e a conversão é pulada.");
         keepStructureVoid.setToolTipText("<html>Por padrão structure_void vira ar, que é o que o próprio "
                 + "Create grava<br>ao salvar um schematic.</html>");
+        skipAir.setToolTipText("<html>Gera um arquivo bem menor (útil para enviar a servidores, limite "
+                + "padrão de 256 KB).<br>Porém o Schematicannon não vai limpar blocos que já estejam "
+                + "no local<br>nos modos de substituição.</html>");
     }
 
     /** Defaults to the Minecraft folder when there is one, since that is the end destination. */
@@ -266,6 +270,7 @@ final class OptionsPanel extends JPanel {
     ConversionOptions toConversionOptions() {
         CreateWriterOptions writerOptions = CreateWriterOptions.defaults()
                 .withIncludeEntities(includeEntities.isSelected())
+                .withSkipAir(skipAir.isSelected())
                 .withStructureVoid(keepStructureVoid.isSelected()
                         ? StructureVoidPolicy.KEEP
                         : StructureVoidPolicy.AIR)
@@ -286,6 +291,7 @@ final class OptionsPanel extends JPanel {
         includeEntities.setEnabled(enabled);
         overwrite.setEnabled(enabled);
         keepStructureVoid.setEnabled(enabled);
+        skipAir.setEnabled(enabled);
         replacements.setEnabled(enabled);
     }
 }

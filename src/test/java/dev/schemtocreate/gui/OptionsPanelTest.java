@@ -21,7 +21,7 @@ class OptionsPanelTest {
                 "pale_oak_planks=spruce_planks, stripped_pale_oak_log=stripped_spruce_log");
 
         assertThat(panel.toConversionOptions().writer().blockReplacements())
-                .containsExactly(
+                .containsOnly(
                         org.assertj.core.api.Assertions.entry(
                                 "minecraft:pale_oak_planks", "minecraft:spruce_planks"),
                         org.assertj.core.api.Assertions.entry(

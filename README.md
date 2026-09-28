@@ -5,6 +5,11 @@ Converts WorldEdit **Sponge Schematic** files (`.schem`) into **Create Schematic
 
 Fully offline. No Minecraft, no WorldEdit, no Forge, no Fabric, no NeoForge — just a JVM.
 
+**Download:** grab the latest build from the
+[Releases page](https://github.com/harrisonleandro/SchemToCreate/releases/latest).
+`SchemToCreate-windows.zip` contains `SchemToCreate.exe` with Java bundled — unzip it and
+run the `.exe`, nothing else to install. `SchemToCreate.jar` runs anywhere with Java 17+.
+
 **As an app:** double-click `SchemToCreate.jar`, drag your `.schem` files onto the window,
 press Convert. It writes straight into `.minecraft/schematics`, so the build shows up in the
 Schematic Table with no further steps.
@@ -125,6 +130,8 @@ What the window does:
 - **Shows per-file results**: dimensions, block count, output size, and any Create
   compatibility warning — including the [parse limit](#creates-real-size-limits), which is
   the thing most likely to bite on a large build.
+- **"Ignorar blocos de ar"** is the window's `--skip-air`: a much smaller file (handy for
+  servers' 256 KiB upload limit), at the cost described [below](#command-line-reference).
 - **Converts off the UI thread**, so the window stays responsive while a large schematic
   streams to disk.
 

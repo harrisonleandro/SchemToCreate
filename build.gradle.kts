@@ -4,7 +4,7 @@ plugins {
 }
 
 group = "dev.schemtocreate"
-version = "1.0.0"
+version = "1.0.1"
 
 description = "Offline converter from WorldEdit Sponge Schematic (.schem) to Create Schematic (.nbt)"
 
