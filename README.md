@@ -5,10 +5,15 @@ Converts WorldEdit **Sponge Schematic** files (`.schem`) into **Create Schematic
 
 Fully offline. No Minecraft, no WorldEdit, no Forge, no Fabric, no NeoForge — just a JVM.
 
-**Download:** grab the latest build from the
-[Releases page](https://github.com/harrisonleandro/SchemToCreate/releases/latest).
-`SchemToCreate-windows.zip` contains `SchemToCreate.exe` with Java bundled — unzip it and
-run the `.exe`, nothing else to install. `SchemToCreate.jar` runs anywhere with Java 17+.
+**Download (latest version):**
+
+- **[⬇ SchemToCreate-windows.zip](https://github.com/harrisonleandro/SchemToCreate/releases/latest/download/SchemToCreate-windows.zip)**
+  — Windows executable with Java bundled. Unzip it and run `SchemToCreate.exe`, nothing
+  else to install.
+- **[⬇ SchemToCreate.jar](https://github.com/harrisonleandro/SchemToCreate/releases/latest/download/SchemToCreate.jar)**
+  — runs anywhere with Java 17+.
+
+Older versions are on the [Releases page](https://github.com/harrisonleandro/SchemToCreate/releases).
 
 **As an app:** double-click `SchemToCreate.jar`, drag your `.schem` files onto the window,
 press Convert. It writes straight into `.minecraft/schematics`, so the build shows up in the
