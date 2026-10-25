@@ -259,6 +259,14 @@ public final class SchemToCreateApp extends JFrame {
         reportRow(file);
     }
 
+    private static long sizeOf(Path path) {
+        try {
+            return java.nio.file.Files.size(path);
+        } catch (java.io.IOException e) {
+            return 0;
+        }
+    }
+
     private void reportRow(QueuedFile file) {
         String name = file.input().getFileName().toString();
         switch (file.status()) {
@@ -267,6 +275,12 @@ public final class SchemToCreateApp extends JFrame {
                         + "   " + file.result().region()
                         + "   " + Formats.count(file.result().write().blocksWritten()) + " blocos"
                         + "   " + Formats.bytes(file.result().write().compressedBytes()));
+                if (file.result().isSplit()) {
+                    appendLog("    dividido em " + file.result().parts().size()
+                            + " partes (de baixo para cima). Coloque TODAS no mesmo lugar, na ordem:");
+                    file.result().parts().forEach(part -> appendLog("      " + part.getFileName()
+                            + "   " + Formats.bytes(sizeOf(part))));
+                }
                 file.warnings().forEach(warning -> appendLog("    aviso: " + warning));
                 // A version gap makes unknown blocks vanish into air with nothing logged, so
                 // the block list is shown unprompted: it is the only way to see which ones.

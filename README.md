@@ -140,6 +140,7 @@ What the window does:
 - **"Remover blocos ocultos"** is `--hollow`: solid interiors (terrain, thick walls) are left
   out. The build looks identical, and the file and the Schematicannon's material list shrink
   dramatically — a 3 MB terrain schematic came down to 250 KB with both options on.
+- **"Dividir em partes de até 256 KB"** is `--split`: see [Splitting for servers](#splitting-for-servers).
 - **Converts off the UI thread**, so the window stays responsive while a large schematic
   streams to disk.
 
@@ -217,6 +218,7 @@ Usage: schemtocreate [-hqrvV] [--benchmark] [--debug] [--dry-run] [--overwrite]
 | `--entities=<true\|false>` | `true` | Write the `entities` list |
 | `--skip-air` | off | Omit air blocks (see note below) |
 | `--hollow` | off | Omit blocks no player can see: full opaque cubes surrounded on all six sides by full opaque cubes |
+| `--split[=<KiB>]` | off | If the output exceeds `<KiB>` (256 when omitted), write `name-parte1.nbt`, `name-parte2.nbt` ... instead — see [Splitting for servers](#splitting-for-servers) |
 | `--structure-void=<air\|keep>` | `air` | Treatment of `minecraft:structure_void` |
 | `--compression=<1-9>` | `6` | GZIP level |
 | `--author=<name>` | omitted | Value for the optional `author` field |
@@ -417,6 +419,23 @@ WARN  File is 251632.4 KiB, above Create's default maxTotalSchematicSize of 256 
 
 The converter still writes the file — the limits belong to Create, not to the format, and
 the output is a perfectly valid structure file that other tools will read.
+
+### Splitting for servers
+
+If even a hollowed file is above the upload limit and raising `maxTotalSchematicSize` is not
+an option, `--split` ("Dividir em partes de até 256 KB" in the window) writes the build as
+several files that each fit:
+
+- **Parts are horizontal bands, bottom first.** `name-parte1.nbt` is the ground floor; each
+  later part sits on top of what the previous one printed.
+- **Every part has the full size of the build** and keeps its blocks at their original
+  positions. Place **every part at exactly the same spot**, in order: the bounding box
+  outline is the same for all of them.
+- **Parts never overwrite each other.** A part lists only its own blocks, and the
+  Schematicannon leaves positions a schematic does not list untouched.
+- Entities travel in the last part, which the cannon prints last anyway.
+
+An output already under the limit is written as a single file, as usual.
 
 ---
 

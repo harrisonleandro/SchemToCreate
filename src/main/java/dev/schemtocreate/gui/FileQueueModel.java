@@ -159,7 +159,9 @@ final class FileQueueModel extends AbstractTableModel {
             case 1 -> Formats.bytes(file.sizeBytes());
             case 2 -> describeStatus(file);
             case 3 -> result == null ? "" : Formats.count(result.write().blocksWritten());
-            case 4 -> result == null ? "" : result.output().getFileName().toString();
+            case 4 -> result == null ? "" : result.isSplit()
+                    ? result.parts().size() + " partes: " + result.output().getFileName() + " ..."
+                    : result.output().getFileName().toString();
             default -> "";
         };
     }

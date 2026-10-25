@@ -104,6 +104,14 @@ public final class ConvertCommand implements Callable<Integer> {
             })
     private boolean hollow;
 
+    @Option(names = "--split", paramLabel = "<KiB>", arity = "0..1", fallbackValue = "256",
+            description = {
+                    "When the output is larger than <KiB> (256 if omitted, Create's server",
+                    "upload limit), write it as name-parte1.nbt, name-parte2.nbt ... instead.",
+                    "Parts are horizontal bands, bottom first; place every part at the same spot."
+            })
+    private Integer splitKiB;
+
     @Option(names = "--structure-void", paramLabel = "<air|keep>",
             description = {
                     "Treatment of minecraft:structure_void. Default: ${DEFAULT-VALUE},",
@@ -189,6 +197,10 @@ public final class ConvertCommand implements Callable<Integer> {
             LOG.error("--compression must be between 1 and 9, got {}", compression);
             return EXIT_USAGE;
         }
+        if (splitKiB != null && splitKiB < 1) {
+            LOG.error("--split must be at least 1 KiB, got {}", splitKiB);
+            return EXIT_USAGE;
+        }
         if (threads < 1) {
             LOG.error("--threads must be at least 1, got {}", threads);
             return EXIT_USAGE;
@@ -250,7 +262,8 @@ public final class ConvertCommand implements Callable<Integer> {
         return ConversionOptions.defaults()
                 .withWriter(writerOptions)
                 .withOverwrite(overwrite)
-                .withInlineThreshold((long) streamThresholdMiB * 1024 * 1024);
+                .withInlineThreshold((long) streamThresholdMiB * 1024 * 1024)
+                .withSplitMaxBytes(splitKiB == null ? 0 : (long) splitKiB * 1024);
     }
 
     /** Adds the implicit {@code minecraft:} namespace so short names work on the command line. */

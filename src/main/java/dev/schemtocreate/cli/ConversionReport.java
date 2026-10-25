@@ -27,6 +27,11 @@ final class ConversionReport {
                 Formats.count(write.blocksWritten()),
                 Formats.bytes(write.compressedBytes()),
                 Formats.duration(result.totalNanos()));
+        if (result.isSplit()) {
+            LOG.info("  {} parts, bottom first: {} .. {}. Place every part at the same position.",
+                    result.parts().size(), result.parts().get(0).getFileName(),
+                    result.parts().get(result.parts().size() - 1).getFileName());
+        }
     }
 
     /** Everything worth knowing about the conversion; shown with {@code --verbose}. */

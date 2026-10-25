@@ -82,21 +82,76 @@ public final class CreateStructureWriter implements StructureWriter {
         return "nbt";
     }
 
+    /**
+     * A structure with its palette rewrites and block filters worked out, so several slices
+     * can be written without recomputing them — hidden blocks in particular must be found on
+     * the whole structure, or every cut between parts would count as an exposed face.
+     */
+    public record Prepared(Structure structure, Palette palette, boolean[] dropped, BitSet hidden) {
+    }
+
+    /**
+     * A contiguous range of rows, where row {@code y * length + z} runs along X. Rows are
+     * ordered bottom-up, so consecutive slices are horizontal bands printed from the ground.
+     *
+     * @param fromRow  first row, inclusive
+     * @param toRow    last row, exclusive
+     * @param entities whether this slice carries the structure's entities
+     */
+    public record Slice(int fromRow, int toRow, boolean entities) {
+
+        public static final Slice ALL = new Slice(0, Integer.MAX_VALUE, true);
+
+        boolean isAll() {
+            return fromRow <= 0 && toRow == Integer.MAX_VALUE;
+        }
+
+        boolean contains(int row) {
+            return row >= fromRow && row < toRow;
+        }
+    }
+
     @Override
     public WriteResult write(Structure structure, Path target, ProgressListener progress) throws IOException {
+        return write(prepare(structure), target, progress, Slice.ALL);
+    }
+
+    public Prepared prepare(Structure structure) throws IOException {
         Palette palette = applyPaletteRewrites(structure.palette());
         boolean[] dropped = droppedStates(palette);
         BitSet hidden = options.removeHidden() ? HiddenBlocks.find(structure, palette) : null;
-        boolean filtering = hidden != null || containsTrue(dropped);
-        long blockCount = filtering
-                ? countWrittenBlocks(structure, dropped, hidden)
-                : structure.region().volume();
-        requireListSize(blockCount, structure.region());
         if (hidden != null) {
             LOG.info("  Left out {} hidden block(s) that no player can see", hidden.cardinality());
         }
+        return new Prepared(structure, palette, dropped, hidden);
+    }
 
-        Counters counters = new Counters(palette.size(), dropped, hidden);
+    /** How many blocks each row would contribute to the output, for planning slices. */
+    public long[] keptBlocksPerRow(Prepared prepared) throws IOException {
+        Region region = prepared.structure().region();
+        long[] perRow = new long[region.height() * region.length()];
+        Counters filter = new Counters(0, prepared.dropped(), prepared.hidden(), Slice.ALL, region.length());
+        prepared.structure().forEachBlock(block -> {
+            if (!filter.isOmitted(block, region)) {
+                perRow[block.pos().y() * region.length() + block.pos().z()]++;
+            }
+        });
+        return perRow;
+    }
+
+    public WriteResult write(Prepared prepared, Path target, ProgressListener progress, Slice slice)
+            throws IOException {
+        Structure structure = prepared.structure();
+        Palette palette = prepared.palette();
+        boolean[] dropped = prepared.dropped();
+        BitSet hidden = prepared.hidden();
+        boolean filtering = hidden != null || containsTrue(dropped) || !slice.isAll();
+        Counters counters = new Counters(palette.size(), dropped, hidden, slice, structure.region().length());
+        long blockCount = filtering
+                ? countWrittenBlocks(structure, counters)
+                : structure.region().volume();
+        requireListSize(blockCount, structure.region());
+
         CountingOutputStream compressed = new CountingOutputStream(Files.newOutputStream(target));
         long uncompressed;
         // `owned` closes the file handle even if opening the GZIP sink fails; `compressed`
@@ -108,7 +163,7 @@ public final class CreateStructureWriter implements StructureWriter {
             writeSize(writer, structure.region());
             writePalette(writer, palette);
             writeBlocks(writer, structure, palette, (int) blockCount, counters, progress);
-            writeEntities(writer, structure, counters);
+            writeEntities(writer, structure, counters, slice.entities());
             writer.putInt("DataVersion", options.resolveDataVersion(structure.dataVersion()));
             if (options.author() != null) {
                 writer.putString("author", options.author());
@@ -235,7 +290,8 @@ public final class CreateStructureWriter implements StructureWriter {
         structure.forEachBlock(block -> {
             // Structure-void rewriting preserves indices, so the block's own index still
             // addresses the right entry in the possibly-rewritten palette.
-            boolean air = palette.state(block.stateIndex()).isAir();
+            boolean inSlice = counters.inSlice(block);
+            boolean air = inSlice && palette.state(block.stateIndex()).isAir();
             boolean omitted = counters.isOmitted(block, structure.region());
             // Air is tallied even when skipped; hidden and absent blocks are not part of the build.
             if (!omitted || air) {
@@ -277,8 +333,9 @@ public final class CreateStructureWriter implements StructureWriter {
         writer.endCompound();
     }
 
-    private void writeEntities(NbtWriter writer, Structure structure, Counters counters) throws IOException {
-        if (!options.includeEntities() || structure.entities().isEmpty()) {
+    private void writeEntities(NbtWriter writer, Structure structure, Counters counters,
+                               boolean sliceHasEntities) throws IOException {
+        if (!sliceHasEntities || !options.includeEntities() || structure.entities().isEmpty()) {
             writer.beginList("entities", NbtType.COMPOUND, 0);
             return;
         }
@@ -319,9 +376,7 @@ public final class CreateStructureWriter implements StructureWriter {
     }
 
     /** Extra pass needed only when filtering: a list must declare its length first. */
-    private static long countWrittenBlocks(Structure structure, boolean[] dropped, BitSet hidden)
-            throws IOException {
-        Counters filter = new Counters(0, dropped, hidden);
+    private static long countWrittenBlocks(Structure structure, Counters filter) throws IOException {
         long[] kept = {0};
         structure.forEachBlock(block -> {
             if (!filter.isOmitted(block, structure.region())) {
@@ -335,19 +390,27 @@ public final class CreateStructureWriter implements StructureWriter {
         final long[] usagePerPaletteIndex;
         final boolean[] dropped;
         final BitSet hidden;
+        final Slice slice;
+        final int length;
         long air;
         int blockEntities;
         int entities;
         int repairedSignLines;
 
-        Counters(int paletteSize, boolean[] dropped, BitSet hidden) {
+        Counters(int paletteSize, boolean[] dropped, BitSet hidden, Slice slice, int length) {
             this.usagePerPaletteIndex = new long[paletteSize];
             this.dropped = dropped;
             this.hidden = hidden;
+            this.slice = slice;
+            this.length = length;
+        }
+
+        boolean inSlice(Block block) {
+            return slice.contains(block.pos().y() * length + block.pos().z());
         }
 
         boolean isOmitted(Block block, Region region) {
-            if (dropped[block.stateIndex()]) {
+            if (dropped[block.stateIndex()] || !inSlice(block)) {
                 return true;
             }
             BlockPos pos = block.pos();

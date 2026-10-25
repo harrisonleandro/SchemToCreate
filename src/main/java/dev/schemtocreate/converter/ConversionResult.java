@@ -17,6 +17,9 @@ import java.util.List;
  * @param readNanos    time spent parsing the header, palette and block entities
  * @param writeNanos   time spent streaming blocks to disk
  * @param warnings     Create compatibility notes; empty when the file should load cleanly
+ * @param parts        every file written when the output was split, in printing order;
+ *                     empty for a single-file output. {@code output} is then the first part
+ *                     and {@code write} the totals across all of them.
  */
 public record ConversionResult(Path input,
                                Path output,
@@ -25,7 +28,17 @@ public record ConversionResult(Path input,
                                WriteResult write,
                                long readNanos,
                                long writeNanos,
-                               List<String> warnings) {
+                               List<String> warnings,
+                               List<Path> parts) {
+
+    public ConversionResult {
+        warnings = List.copyOf(warnings);
+        parts = List.copyOf(parts);
+    }
+
+    public boolean isSplit() {
+        return !parts.isEmpty();
+    }
 
     public long totalNanos() {
         return readNanos + writeNanos;

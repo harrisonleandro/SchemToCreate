@@ -10,7 +10,7 @@ import dev.schemtocreate.reader.structure.StructureNbtReader;
 import dev.schemtocreate.util.ProgressListener;
 import dev.schemtocreate.writer.CreateCompatibility;
 import dev.schemtocreate.writer.CreateStructureWriter;
-import dev.schemtocreate.writer.StructureWriter;
+import dev.schemtocreate.util.Formats;
 import dev.schemtocreate.writer.WriteResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,6 +21,7 @@ import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.util.List;
 
 /**
  * Drives one conversion: pick a reader, read into the internal model, write with the Create
@@ -70,7 +71,9 @@ public final class SchematicConverter {
 
     public ConversionResult convert(Path input, Path output, ProgressListener progress) throws IOException {
         validateInput(input);
-        validateOutput(output);
+        // When splitting, whether `output` itself is written is only known after measuring,
+        // so its existence is checked then; the parts are checked by the splitter.
+        validateOutput(output, options.splitMaxBytes() <= 0);
 
         long readStart = System.nanoTime();
         SchematicReader reader = readers.detect(input);
@@ -82,36 +85,42 @@ public final class SchematicConverter {
                 structure.blockEntities().size(), structure.entities().size());
 
         long writeStart = System.nanoTime();
-        WriteResult write = writeAtomically(structure, output, progress);
-        long writeNanos = System.nanoTime() - writeStart;
+        CreateStructureWriter writer = new CreateStructureWriter(options.writer());
+        CreateStructureWriter.Prepared prepared = writer.prepare(structure);
+        // Written to a sibling temporary file and moved into place, so an interrupted run
+        // never leaves a truncated .nbt that Create would try to parse.
+        Path temporary = temporaryBeside(output);
+        WriteResult whole;
+        try {
+            whole = writer.write(prepared, temporary, progress, CreateStructureWriter.Slice.ALL);
+            if (options.splitMaxBytes() <= 0 || whole.compressedBytes() <= options.splitMaxBytes()) {
+                validateOutput(output, true);
+                move(temporary, output);
+                return new ConversionResult(input, output, reader.formatName(), structure.region(),
+                        whole, readNanos, System.nanoTime() - writeStart,
+                        CreateCompatibility.warnings(structure, whole), List.of());
+            }
+        } finally {
+            Files.deleteIfExists(temporary);
+        }
 
-        return new ConversionResult(input, output, reader.formatName(), structure.region(),
-                write, readNanos, writeNanos, CreateCompatibility.warnings(structure, write));
+        PartSplitter.Split split = new PartSplitter(writer, prepared, options).write(output, whole);
+        LOG.info("  Split into {} part(s) of at most {}; place every part at the same position",
+                split.parts().size(), Formats.bytes(options.splitMaxBytes()));
+        return new ConversionResult(input, split.parts().get(0), reader.formatName(), structure.region(),
+                split.total(), readNanos, System.nanoTime() - writeStart,
+                CreateCompatibility.warnings(structure, split.largest()), split.parts());
     }
 
-    /**
-     * Writes to a sibling temporary file and moves it into place, so an interrupted run
-     * never leaves a truncated {@code .nbt} that Create would try to parse.
-     */
-    private WriteResult writeAtomically(Structure structure, Path output, ProgressListener progress)
-            throws IOException {
-        StructureWriter writer = new CreateStructureWriter(options.writer());
+    static Path temporaryBeside(Path output) throws IOException {
         Path directory = output.toAbsolutePath().getParent();
         if (directory != null) {
             Files.createDirectories(directory);
         }
-        Path temporary = Files.createTempFile(directory, ".schemtocreate-", ".nbt.part");
-        try {
-            WriteResult result = writer.write(structure, temporary, progress);
-            move(temporary, output);
-            return result;
-        } catch (IOException | RuntimeException e) {
-            Files.deleteIfExists(temporary);
-            throw e;
-        }
+        return Files.createTempFile(directory, ".schemtocreate-", ".nbt.part");
     }
 
-    private static void move(Path from, Path to) throws IOException {
+    static void move(Path from, Path to) throws IOException {
         try {
             Files.move(from, to, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
         } catch (AtomicMoveNotSupportedException e) {
@@ -134,8 +143,8 @@ public final class SchematicConverter {
         }
     }
 
-    private void validateOutput(Path output) throws IOException {
-        if (Files.exists(output) && !options.overwrite()) {
+    private void validateOutput(Path output, boolean checkExisting) throws IOException {
+        if (checkExisting && Files.exists(output) && !options.overwrite()) {
             throw new FileExistsException(output);
         }
         if (Files.isDirectory(output)) {

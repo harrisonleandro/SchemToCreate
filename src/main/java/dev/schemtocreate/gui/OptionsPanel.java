@@ -55,6 +55,7 @@ final class OptionsPanel extends JPanel {
     private final JCheckBox keepStructureVoid = new JCheckBox("Manter structure_void", false);
     private final JCheckBox skipAir = new JCheckBox("Ignorar blocos de ar", false);
     private final JCheckBox hollow = new JCheckBox("Remover blocos ocultos", false);
+    private final JCheckBox split = new JCheckBox("Dividir em partes de até 256 KB", false);
     private final JTextField replacements = new JTextField();
 
     private Path customFolder;
@@ -176,7 +177,7 @@ final class OptionsPanel extends JPanel {
         rows.setLayout(new BoxLayout(rows, BoxLayout.Y_AXIS));
         rows.setAlignmentX(Component.LEFT_ALIGNMENT);
         rows.add(checkboxLine(includeEntities, overwrite, keepStructureVoid));
-        rows.add(checkboxLine(skipAir, hollow));
+        rows.add(checkboxLine(skipAir, hollow, split));
         return rows;
     }
 
@@ -207,6 +208,10 @@ final class OptionsPanel extends JPanel {
         hollow.setToolTipText("<html>Remove blocos sólidos totalmente cercados por outros blocos sólidos "
                 + "(o interior de<br>terrenos e paredes grossas). A construção fica idêntica por fora, o "
                 + "arquivo<br>fica muito menor e o Schematicannon pede bem menos material.</html>");
+        split.setToolTipText("<html>Para servidores, que por padrão recusam schematics acima de 256 KB.<br>"
+                + "Se o arquivo passar disso, ele é salvo como nome-parte1.nbt, nome-parte2.nbt...<br>"
+                + "em fatias horizontais, de baixo para cima. Todas as partes têm o mesmo tamanho:<br>"
+                + "<b>coloque cada uma exatamente no mesmo lugar</b>, na ordem.</html>");
     }
 
     /** Defaults to the Minecraft folder when there is one, since that is the end destination. */
@@ -293,7 +298,8 @@ final class OptionsPanel extends JPanel {
                 .withBlockReplacements(parseReplacements());
         return ConversionOptions.defaults()
                 .withWriter(writerOptions)
-                .withOverwrite(overwrite.isSelected());
+                .withOverwrite(overwrite.isSelected())
+                .withSplitMaxBytes(split.isSelected() ? ConversionOptions.DEFAULT_SPLIT_BYTES : 0);
     }
 
     /** Sets the substitution field's contents. Used by tests. */
@@ -309,6 +315,7 @@ final class OptionsPanel extends JPanel {
         keepStructureVoid.setEnabled(enabled);
         skipAir.setEnabled(enabled);
         hollow.setEnabled(enabled);
+        split.setEnabled(enabled);
         replacements.setEnabled(enabled);
     }
 }
