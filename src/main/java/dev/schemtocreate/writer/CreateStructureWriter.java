@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.BitSet;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -54,6 +55,13 @@ public final class CreateStructureWriter implements StructureWriter {
 
     private static final Logger LOG = LoggerFactory.getLogger(CreateStructureWriter.class);
 
+    /**
+     * Blocks that were renamed after 1.20.1, mapped back to the name 1.20.1 knows. Unlike a
+     * block that is simply new, a rename has an exact equivalent, so it is applied always.
+     */
+    private static final Map<String, String> NEWER_NAMES = Map.of(
+            "minecraft:short_grass", "minecraft:grass");
+
     private final CreateWriterOptions options;
 
     public CreateStructureWriter() {
@@ -77,12 +85,18 @@ public final class CreateStructureWriter implements StructureWriter {
     @Override
     public WriteResult write(Structure structure, Path target, ProgressListener progress) throws IOException {
         Palette palette = applyPaletteRewrites(structure.palette());
-        long blockCount = options.skipAir()
-                ? countWrittenBlocks(structure, palette)
+        boolean[] dropped = droppedStates(palette);
+        BitSet hidden = options.removeHidden() ? HiddenBlocks.find(structure, palette) : null;
+        boolean filtering = hidden != null || containsTrue(dropped);
+        long blockCount = filtering
+                ? countWrittenBlocks(structure, dropped, hidden)
                 : structure.region().volume();
         requireListSize(blockCount, structure.region());
+        if (hidden != null) {
+            LOG.info("  Left out {} hidden block(s) that no player can see", hidden.cardinality());
+        }
 
-        Counters counters = new Counters(palette.size());
+        Counters counters = new Counters(palette.size(), dropped, hidden);
         CountingOutputStream compressed = new CountingOutputStream(Files.newOutputStream(target));
         long uncompressed;
         // `owned` closes the file handle even if opening the GZIP sink fails; `compressed`
@@ -122,7 +136,7 @@ public final class CreateStructureWriter implements StructureWriter {
     private static List<WriteResult.BlockUsage> summariseUsage(Palette palette, long[] usage) {
         Map<String, Long> totals = new HashMap<>();
         for (int index = 0; index < usage.length && index < palette.size(); index++) {
-            if (usage[index] > 0) {
+            if (usage[index] > 0 && !palette.state(index).isAbsent()) {
                 totals.merge(palette.state(index).name(), usage[index], Long::sum);
             }
         }
@@ -158,6 +172,11 @@ public final class CreateStructureWriter implements StructureWriter {
                 voids++;
                 continue;
             }
+            String renamed = NEWER_NAMES.get(states[i].name());
+            if (renamed != null) {
+                states[i] = states[i].withName(renamed);
+                substituted++;
+            }
             String replacement = options.blockReplacements().get(states[i].name());
             if (replacement != null) {
                 // Properties are carried over: a stripped log swapped for another stripped log
@@ -171,7 +190,7 @@ public final class CreateStructureWriter implements StructureWriter {
             LOG.debug("Replaced {} structure_void palette entr(ies) with air, matching Create's own saver", voids);
         }
         if (substituted > 0) {
-            LOG.info("  Substituted {} palette entr(ies) via --replace", substituted);
+            LOG.info("  Substituted {} palette entr(ies) (--replace and post-1.20.1 renames)", substituted);
         }
         return voids + substituted == 0 ? source : new ArrayPalette(states);
     }
@@ -183,9 +202,17 @@ public final class CreateStructureWriter implements StructureWriter {
         writer.payloadInt(region.length());
     }
 
+    /**
+     * The absent marker is only ever appended after a source's real palette, so trimming the
+     * trailing markers keeps every written index valid without renumbering anything.
+     */
     private static void writePalette(NbtWriter writer, Palette palette) throws IOException {
-        writer.beginList("palette", NbtType.COMPOUND, palette.size());
-        for (BlockState state : palette.states()) {
+        int size = palette.size();
+        while (size > 0 && palette.state(size - 1).isAbsent()) {
+            size--;
+        }
+        writer.beginList("palette", NbtType.COMPOUND, size);
+        for (BlockState state : palette.states().subList(0, size)) {
             writer.putString("Name", state.name());
             if (state.hasProperties()) {
                 writer.beginCompound("Properties");
@@ -209,8 +236,12 @@ public final class CreateStructureWriter implements StructureWriter {
             // Structure-void rewriting preserves indices, so the block's own index still
             // addresses the right entry in the possibly-rewritten palette.
             boolean air = palette.state(block.stateIndex()).isAir();
-            counters.usagePerPaletteIndex[block.stateIndex()]++;
-            if (!options.skipAir() || !air) {
+            boolean omitted = counters.isOmitted(block, structure.region());
+            // Air is tallied even when skipped; hidden and absent blocks are not part of the build.
+            if (!omitted || air) {
+                counters.usagePerPaletteIndex[block.stateIndex()]++;
+            }
+            if (!omitted) {
                 writeBlockEntry(writer, block, counters);
             }
             if (air) {
@@ -268,11 +299,32 @@ public final class CreateStructureWriter implements StructureWriter {
         }
     }
 
-    /** Extra pass needed only for {@code --skip-air}: a list must declare its length first. */
-    private static long countWrittenBlocks(Structure structure, Palette palette) throws IOException {
+    /** Palette entries never written: the absent marker always, air under {@code --skip-air}. */
+    private boolean[] droppedStates(Palette palette) {
+        boolean[] dropped = new boolean[palette.size()];
+        for (int i = 0; i < dropped.length; i++) {
+            BlockState state = palette.state(i);
+            dropped[i] = state.isAbsent() || (options.skipAir() && state.isAir());
+        }
+        return dropped;
+    }
+
+    private static boolean containsTrue(boolean[] values) {
+        for (boolean value : values) {
+            if (value) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Extra pass needed only when filtering: a list must declare its length first. */
+    private static long countWrittenBlocks(Structure structure, boolean[] dropped, BitSet hidden)
+            throws IOException {
+        Counters filter = new Counters(0, dropped, hidden);
         long[] kept = {0};
         structure.forEachBlock(block -> {
-            if (!palette.state(block.stateIndex()).isAir()) {
+            if (!filter.isOmitted(block, structure.region())) {
                 kept[0]++;
             }
         });
@@ -281,13 +333,25 @@ public final class CreateStructureWriter implements StructureWriter {
 
     private static final class Counters {
         final long[] usagePerPaletteIndex;
+        final boolean[] dropped;
+        final BitSet hidden;
         long air;
         int blockEntities;
         int entities;
         int repairedSignLines;
 
-        Counters(int paletteSize) {
+        Counters(int paletteSize, boolean[] dropped, BitSet hidden) {
             this.usagePerPaletteIndex = new long[paletteSize];
+            this.dropped = dropped;
+            this.hidden = hidden;
+        }
+
+        boolean isOmitted(Block block, Region region) {
+            if (dropped[block.stateIndex()]) {
+                return true;
+            }
+            BlockPos pos = block.pos();
+            return hidden != null && hidden.get((int) region.indexOf(pos.x(), pos.y(), pos.z()));
         }
     }
 

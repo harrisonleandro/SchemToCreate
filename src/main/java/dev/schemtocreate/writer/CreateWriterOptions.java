@@ -14,6 +14,7 @@ import java.util.Map;
  * @param dataVersionOverride explicit {@code DataVersion}, or {@code null} to use the source's
  * @param blockReplacements   palette substitutions by block name, {@code from -> to}
  * @param repairSignText      rewrite 1.21.5+ sign text into the JSON components 1.20.1 needs
+ * @param removeHidden        omit blocks no player can see (see {@link HiddenBlocks})
  */
 public record CreateWriterOptions(boolean includeEntities,
                                   boolean skipAir,
@@ -22,7 +23,8 @@ public record CreateWriterOptions(boolean includeEntities,
                                   String author,
                                   Integer dataVersionOverride,
                                   Map<String, String> blockReplacements,
-                                  boolean repairSignText) {
+                                  boolean repairSignText,
+                                  boolean removeHidden) {
 
     /** Minecraft 1.20.1, the version Create 6.0.8 targets. */
     public static final int DATA_VERSION_1_20_1 = 3465;
@@ -38,37 +40,37 @@ public record CreateWriterOptions(boolean includeEntities,
      */
     public static CreateWriterOptions defaults() {
         return new CreateWriterOptions(true, false, StructureVoidPolicy.AIR, 6, null, null,
-                Map.of(), true);
+                Map.of(), true, false);
     }
 
     public CreateWriterOptions withIncludeEntities(boolean value) {
         return new CreateWriterOptions(value, skipAir, structureVoid, compressionLevel, author,
-                dataVersionOverride, blockReplacements, repairSignText);
+                dataVersionOverride, blockReplacements, repairSignText, removeHidden);
     }
 
     public CreateWriterOptions withSkipAir(boolean value) {
         return new CreateWriterOptions(includeEntities, value, structureVoid, compressionLevel, author,
-                dataVersionOverride, blockReplacements, repairSignText);
+                dataVersionOverride, blockReplacements, repairSignText, removeHidden);
     }
 
     public CreateWriterOptions withStructureVoid(StructureVoidPolicy value) {
         return new CreateWriterOptions(includeEntities, skipAir, value, compressionLevel, author,
-                dataVersionOverride, blockReplacements, repairSignText);
+                dataVersionOverride, blockReplacements, repairSignText, removeHidden);
     }
 
     public CreateWriterOptions withCompressionLevel(int value) {
         return new CreateWriterOptions(includeEntities, skipAir, structureVoid, value, author,
-                dataVersionOverride, blockReplacements, repairSignText);
+                dataVersionOverride, blockReplacements, repairSignText, removeHidden);
     }
 
     public CreateWriterOptions withAuthor(String value) {
         return new CreateWriterOptions(includeEntities, skipAir, structureVoid, compressionLevel, value,
-                dataVersionOverride, blockReplacements, repairSignText);
+                dataVersionOverride, blockReplacements, repairSignText, removeHidden);
     }
 
     public CreateWriterOptions withDataVersionOverride(Integer value) {
         return new CreateWriterOptions(includeEntities, skipAir, structureVoid, compressionLevel, author,
-                value, blockReplacements, repairSignText);
+                value, blockReplacements, repairSignText, removeHidden);
     }
 
     /**
@@ -81,12 +83,17 @@ public record CreateWriterOptions(boolean includeEntities,
      */
     public CreateWriterOptions withBlockReplacements(Map<String, String> value) {
         return new CreateWriterOptions(includeEntities, skipAir, structureVoid, compressionLevel, author,
-                dataVersionOverride, value, repairSignText);
+                dataVersionOverride, value, repairSignText, removeHidden);
     }
 
     public CreateWriterOptions withRepairSignText(boolean value) {
         return new CreateWriterOptions(includeEntities, skipAir, structureVoid, compressionLevel, author,
-                dataVersionOverride, blockReplacements, value);
+                dataVersionOverride, blockReplacements, value, removeHidden);
+    }
+
+    public CreateWriterOptions withRemoveHidden(boolean value) {
+        return new CreateWriterOptions(includeEntities, skipAir, structureVoid, compressionLevel, author,
+                dataVersionOverride, blockReplacements, repairSignText, value);
     }
 
     /** The {@code DataVersion} to write: the override, else the source's, else 1.20.1. */

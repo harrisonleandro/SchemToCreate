@@ -54,6 +54,7 @@ final class OptionsPanel extends JPanel {
     private final JCheckBox overwrite = new JCheckBox("Substituir arquivos existentes", true);
     private final JCheckBox keepStructureVoid = new JCheckBox("Manter structure_void", false);
     private final JCheckBox skipAir = new JCheckBox("Ignorar blocos de ar", false);
+    private final JCheckBox hollow = new JCheckBox("Remover blocos ocultos", false);
     private final JTextField replacements = new JTextField();
 
     private Path customFolder;
@@ -168,12 +169,23 @@ final class OptionsPanel extends JPanel {
         return trimmed.indexOf(':') < 0 ? "minecraft:" + trimmed : trimmed;
     }
 
+    /** Two rows: what goes in the file, then the size reducers, so neither row overflows. */
     private JComponent buildCheckboxRow() {
+        JPanel rows = new JPanel();
+        rows.setOpaque(false);
+        rows.setLayout(new BoxLayout(rows, BoxLayout.Y_AXIS));
+        rows.setAlignmentX(Component.LEFT_ALIGNMENT);
+        rows.add(checkboxLine(includeEntities, overwrite, keepStructureVoid));
+        rows.add(checkboxLine(skipAir, hollow));
+        return rows;
+    }
+
+    private static JComponent checkboxLine(JCheckBox... boxes) {
         JPanel row = new JPanel();
         row.setOpaque(false);
         row.setLayout(new BoxLayout(row, BoxLayout.X_AXIS));
         row.setAlignmentX(Component.LEFT_ALIGNMENT);
-        for (JCheckBox box : new JCheckBox[]{includeEntities, overwrite, keepStructureVoid, skipAir}) {
+        for (JCheckBox box : boxes) {
             box.setOpaque(false);
             row.add(box);
             row.add(Box.createHorizontalStrut(14));
@@ -192,6 +204,9 @@ final class OptionsPanel extends JPanel {
         skipAir.setToolTipText("<html>Gera um arquivo bem menor (útil para enviar a servidores, limite "
                 + "padrão de 256 KB).<br>Porém o Schematicannon não vai limpar blocos que já estejam "
                 + "no local<br>nos modos de substituição.</html>");
+        hollow.setToolTipText("<html>Remove blocos sólidos totalmente cercados por outros blocos sólidos "
+                + "(o interior de<br>terrenos e paredes grossas). A construção fica idêntica por fora, o "
+                + "arquivo<br>fica muito menor e o Schematicannon pede bem menos material.</html>");
     }
 
     /** Defaults to the Minecraft folder when there is one, since that is the end destination. */
@@ -271,6 +286,7 @@ final class OptionsPanel extends JPanel {
         CreateWriterOptions writerOptions = CreateWriterOptions.defaults()
                 .withIncludeEntities(includeEntities.isSelected())
                 .withSkipAir(skipAir.isSelected())
+                .withRemoveHidden(hollow.isSelected())
                 .withStructureVoid(keepStructureVoid.isSelected()
                         ? StructureVoidPolicy.KEEP
                         : StructureVoidPolicy.AIR)
@@ -292,6 +308,7 @@ final class OptionsPanel extends JPanel {
         overwrite.setEnabled(enabled);
         keepStructureVoid.setEnabled(enabled);
         skipAir.setEnabled(enabled);
+        hollow.setEnabled(enabled);
         replacements.setEnabled(enabled);
     }
 }

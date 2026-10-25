@@ -53,7 +53,7 @@ final class DropZone extends JPanel {
         setBorder(BorderFactory.createEmptyBorder(22, 16, 22, 16));
         setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
 
-        add(centeredLabel("Arraste seus arquivos .schem para cá", Font.BOLD, 15,
+        add(centeredLabel("Arraste seus arquivos .schem, .schematic ou .nbt para cá", Font.BOLD, 15,
                 new Color(0x33, 0x38, 0x40)));
         add(centeredLabel("ou clique para escolher — pastas também funcionam", Font.PLAIN, 12,
                 new Color(0x6B, 0x72, 0x80)));

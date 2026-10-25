@@ -1,6 +1,8 @@
 package dev.schemtocreate.reader;
 
+import dev.schemtocreate.reader.legacy.LegacySchematicReader;
 import dev.schemtocreate.reader.sponge.SpongeSchematicReader;
+import dev.schemtocreate.reader.structure.StructureNbtReader;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -20,6 +22,8 @@ public final class SchematicReaderRegistry {
     public static SchematicReaderRegistry withDefaults() {
         SchematicReaderRegistry registry = new SchematicReaderRegistry();
         registry.register(new SpongeSchematicReader());
+        registry.register(new LegacySchematicReader());
+        registry.register(new StructureNbtReader());
         return registry;
     }
 

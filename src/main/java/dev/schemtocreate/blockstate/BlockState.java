@@ -19,6 +19,13 @@ public final class BlockState {
     public static final String AIR_NAME = "minecraft:air";
     public static final BlockState AIR = new BlockState(AIR_NAME, Map.of());
 
+    /**
+     * "No block here" — distinct from air. A vanilla structure only lists the positions it
+     * sets; the rest leave the world as it is. Readers of such sources map unlisted positions
+     * to this marker, and the writer never emits it.
+     */
+    public static final BlockState ABSENT = new BlockState("schemtocreate:absent", Map.of());
+
     private final String name;
     private final Map<String, String> properties;
     private final int hash;
@@ -51,6 +58,10 @@ public final class BlockState {
 
     public boolean isAir() {
         return AIR_NAME.equals(name);
+    }
+
+    public boolean isAbsent() {
+        return ABSENT.equals(this);
     }
 
     public boolean isStructureVoid() {

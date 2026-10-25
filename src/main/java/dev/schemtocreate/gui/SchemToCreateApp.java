@@ -83,7 +83,7 @@ public final class SchemToCreateApp extends JFrame {
         title.setForeground(HEADER_TEXT);
 
         JLabel subtitle = new JLabel(
-                "Converte schematics do WorldEdit para o formato do Create 6.0.8 — "
+                "Converte schematics (WorldEdit, MCEdit, Schematica) para o Create 6.0.8 — "
                         + "Minecraft 1.20.1. Funciona sem internet.");
         subtitle.setFont(subtitle.getFont().deriveFont(Font.PLAIN, 12f));
         subtitle.setForeground(MUTED_TEXT);
@@ -190,7 +190,7 @@ public final class SchemToCreateApp extends JFrame {
         chooser.setFileSelectionMode(JFileChooser.FILES_AND_DIRECTORIES);
         chooser.setDialogTitle("Escolher schematics");
         chooser.setFileFilter(new FileNameExtensionFilter(
-                "Schematics do WorldEdit (*.schem, *.schematic)", "schem", "schematic"));
+                "Schematics (*.schem, *.schematic, *.nbt)", "schem", "schematic", "nbt"));
         if (chooser.showOpenDialog(this) != JFileChooser.APPROVE_OPTION) {
             return;
         }

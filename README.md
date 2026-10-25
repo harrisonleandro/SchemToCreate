@@ -29,7 +29,7 @@ java -jar SchemToCreate.jar medieval-house.schem
 | | |
 |---|---|
 | **Target** | Minecraft 1.20.1 · Create 6.0.8 |
-| **Input** | Sponge Schematic v1, v2 and v3 (`.schem`, `.schematic`), GZIP or plain |
+| **Input** | Sponge Schematic v1, v2 and v3 (`.schem`), pre-1.13 MCEdit/Schematica (`.schematic`), and Create/vanilla structures (`.nbt`, to re-process them) |
 | **Output** | GZIP compressed vanilla structure NBT (`.nbt`) |
 | **Runtime** | Java 17 or newer (tested on 17 and 21) |
 | **Runtime dependencies** | picocli, SLF4J, Logback — all bundled in the jar |
@@ -137,6 +137,9 @@ What the window does:
   the thing most likely to bite on a large build.
 - **"Ignorar blocos de ar"** is the window's `--skip-air`: a much smaller file (handy for
   servers' 256 KiB upload limit), at the cost described [below](#command-line-reference).
+- **"Remover blocos ocultos"** is `--hollow`: solid interiors (terrain, thick walls) are left
+  out. The build looks identical, and the file and the Schematicannon's material list shrink
+  dramatically — a 3 MB terrain schematic came down to 250 KB with both options on.
 - **Converts off the UI thread**, so the window stays responsive while a large schematic
   streams to disk.
 
@@ -213,6 +216,7 @@ Usage: schemtocreate [-hqrvV] [--benchmark] [--debug] [--dry-run] [--overwrite]
 | `--overwrite` | off | Replace existing outputs instead of skipping them |
 | `--entities=<true\|false>` | `true` | Write the `entities` list |
 | `--skip-air` | off | Omit air blocks (see note below) |
+| `--hollow` | off | Omit blocks no player can see: full opaque cubes surrounded on all six sides by full opaque cubes |
 | `--structure-void=<air\|keep>` | `air` | Treatment of `minecraft:structure_void` |
 | `--compression=<1-9>` | `6` | GZIP level |
 | `--author=<name>` | omitted | Value for the optional `author` field |

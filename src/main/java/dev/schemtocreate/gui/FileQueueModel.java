@@ -44,7 +44,7 @@ final class FileQueueModel extends AbstractTableModel {
         if (Files.isDirectory(path)) {
             return addFromDirectory(path);
         }
-        if (!isSchematic(path) || !seen.add(path.toAbsolutePath())) {
+        if (!(isSchematic(path) || isStructure(path)) || !seen.add(path.toAbsolutePath())) {
             return 0;
         }
         rows.add(new QueuedFile(path, sizeOf(path)));
@@ -68,6 +68,15 @@ final class FileQueueModel extends AbstractTableModel {
         } catch (IOException e) {
             return 0;
         }
+    }
+
+    /**
+     * A Create / vanilla {@code .nbt} structure, accepted only when picked or dropped
+     * directly: a dropped folder such as {@code schematics} is full of them, and they are
+     * what this app writes, so scanning folders for them would re-convert its own output.
+     */
+    static boolean isStructure(Path path) {
+        return path.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(".nbt");
     }
 
     static boolean isSchematic(Path path) {

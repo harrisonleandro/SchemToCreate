@@ -96,6 +96,14 @@ public final class ConvertCommand implements Callable<Integer> {
             })
     private boolean skipAir;
 
+    @Option(names = "--hollow",
+            description = {
+                    "Omit blocks no player can see: full opaque cubes surrounded by full",
+                    "opaque cubes. Much smaller files and material lists for terrain and",
+                    "solid builds; the finished build looks the same."
+            })
+    private boolean hollow;
+
     @Option(names = "--structure-void", paramLabel = "<air|keep>",
             description = {
                     "Treatment of minecraft:structure_void. Default: ${DEFAULT-VALUE},",
@@ -232,6 +240,7 @@ public final class ConvertCommand implements Callable<Integer> {
         CreateWriterOptions writerOptions = CreateWriterOptions.defaults()
                 .withIncludeEntities(entities)
                 .withSkipAir(skipAir)
+                .withRemoveHidden(hollow)
                 .withStructureVoid(structureVoid)
                 .withCompressionLevel(compression)
                 .withAuthor(author)

@@ -25,18 +25,32 @@ class GuiModelTest {
     Path temp;
 
     @Test
-    @DisplayName("only schematic files are queued")
+    @DisplayName("only schematic and directly chosen structure files are queued")
     void ignoresUnrelatedFiles() throws IOException {
         Path schematic = fixture("house.schem");
         Path text = Files.writeString(temp.resolve("notes.txt"), "not a schematic");
-        Path nbt = Files.writeString(temp.resolve("already.nbt"), "output, not input");
+        Path nbt = Files.writeString(temp.resolve("already.nbt"), "re-processed on request");
 
         FileQueueModel model = new FileQueueModel();
         int added = model.add(List.of(schematic, text, nbt));
 
-        assertThat(added).isEqualTo(1);
-        assertThat(model.getRowCount()).isEqualTo(1);
+        assertThat(added).isEqualTo(2);
         assertThat(model.getValueAt(0, 0)).isEqualTo("house.schem");
+        assertThat(model.getValueAt(1, 0)).isEqualTo("already.nbt");
+    }
+
+    @Test
+    @DisplayName("a dropped folder does not queue the .nbt files this app writes")
+    void foldersSkipStructureFiles() throws IOException {
+        Files.createDirectories(temp.resolve("schematics"));
+        fixture("schematics/a.schem");
+        Files.writeString(temp.resolve("schematics/a.nbt"), "an earlier output");
+
+        FileQueueModel model = new FileQueueModel();
+        model.add(List.of(temp.resolve("schematics")));
+
+        assertThat(model.getRowCount()).isEqualTo(1);
+        assertThat(model.getValueAt(0, 0)).isEqualTo("a.schem");
     }
 
     @Test

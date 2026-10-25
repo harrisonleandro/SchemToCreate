@@ -4,7 +4,9 @@ import dev.schemtocreate.io.nbt.NbtDocument;
 import dev.schemtocreate.model.Structure;
 import dev.schemtocreate.reader.SchematicReader;
 import dev.schemtocreate.reader.SchematicReaderRegistry;
+import dev.schemtocreate.reader.legacy.LegacySchematicReader;
 import dev.schemtocreate.reader.sponge.SpongeSchematicReader;
+import dev.schemtocreate.reader.structure.StructureNbtReader;
 import dev.schemtocreate.util.ProgressListener;
 import dev.schemtocreate.writer.CreateCompatibility;
 import dev.schemtocreate.writer.CreateStructureWriter;
@@ -46,14 +48,22 @@ public final class SchematicConverter {
 
     private static SchematicReaderRegistry defaultRegistry(ConversionOptions options) {
         return new SchematicReaderRegistry()
-                .register(new SpongeSchematicReader(options.inlineThreshold(), options.nbtLimits()));
+                .register(new SpongeSchematicReader(options.inlineThreshold(), options.nbtLimits()))
+                .register(new LegacySchematicReader(options.nbtLimits()))
+                .register(new StructureNbtReader(options.nbtLimits()));
     }
 
-    /** Replaces the source extension with {@code .nbt}. */
+    /**
+     * Replaces the source extension with {@code .nbt}. A source that is already {@code .nbt}
+     * gets a {@code -converted} suffix instead, so the output never lands on the input.
+     */
     public static Path defaultOutputFor(Path input) {
         String name = input.getFileName().toString();
         int dot = name.lastIndexOf('.');
         String base = dot > 0 ? name.substring(0, dot) : name;
+        if (name.toLowerCase(java.util.Locale.ROOT).endsWith(".nbt")) {
+            base += "-converted";
+        }
         Path parent = input.toAbsolutePath().getParent();
         return parent == null ? Path.of(base + ".nbt") : parent.resolve(base + ".nbt");
     }
